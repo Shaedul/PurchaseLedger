@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Purchase Ledger</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#241509">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#241509;
+    --bg-warm:#2f1c0e;
+    --card:#FBF3E7;
+    --card-edge:#EADFC8;
+    --ink:#2B1B14;
+    --ink-soft:#6b5745;
+    --chili:#C1272D;
+    --chili-dark:#8f1b20;
+    --turmeric:#D9A94D;
+    --turmeric-soft:#f0dba8;
+    --curry:#4B6B3F;
+    --paper-line: rgba(43,27,20,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(217,169,77,0.10), transparent 45%),
+      radial-gradient(circle at 90% 100%, rgba(193,39,45,0.12), transparent 45%),
+      var(--bg);
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:22px 16px 0;}
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    color:var(--turmeric-soft);
+  }
+  header .title{
+    font-family:'Fraunces',serif;
+    font-size:26px;
+    font-weight:700;
+    color:#fff;
+    letter-spacing:0.2px;
+  }
+  header .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--turmeric);
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    margin-top:2px;
+  }
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:16px;
+    background:rgba(255,255,255,0.06);
+    padding:4px;
+    border-radius:12px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:10px 8px;
+    border-radius:9px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    color:var(--turmeric-soft);
+    cursor:pointer;
+    user-select:none;
+    transition:background .15s ease, color .15s ease;
+  }
+  .tab.active{
+    background:var(--turmeric);
+    color:var(--ink);
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-edge);
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  }
+  .card h2{
+    font-family:'Fraunces',serif;
+    font-size:18px;
+    margin:0 0 14px;
+    color:var(--ink);
+  }
+
+  label{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    color:var(--ink-soft);
+    margin-bottom:5px;
+  }
+  .row{display:flex;gap:10px;margin-bottom:12px;}
+  .row > div{flex:1;}
+  input, select{
+    width:100%;
+    padding:10px 11px;
+    border-radius:8px;
+    border:1.5px solid var(--card-edge);
+    background:#fff;
+    font-family:'Inter',sans-serif;
+    font-size:14.5px;
+    color:var(--ink);
+  }
+  input:focus, select:focus{outline:2px solid var(--turmeric);outline-offset:1px;border-color:var(--turmeric);}
+
+  .btn{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:9px;
+    background:var(--chili);
+    color:#fff;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:14.5px;
+    cursor:pointer;
+    letter-spacing:0.3px;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .btn:hover{background:var(--chili-dark);}
+  .btn:active{transform:scale(0.98);}
+  .btn.secondary{
+    background:transparent;
+    border:1.5px solid var(--curry);
+    color:var(--curry);
+  }
+  .btn.secondary:hover{background:rgba(75,107,63,0.08);}
+
+  .entry{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:11px 4px;
+    border-bottom:1px dashed var(--paper-line);
+    font-size:14px;
+  }
+  .entry:last-child{border-bottom:none;}
+  .entry .item-name{font-weight:600;}
+  .entry .meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);}
+  .entry .qty{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    color:var(--chili);
+    white-space:nowrap;
+    margin-left:10px;
+    cursor:pointer;
+  }
+  .del{
+    background:none;border:none;color:var(--ink-soft);
+    cursor:pointer;font-size:16px;padding:2px 6px;margin-left:4px;
+  }
+  .del:hover{color:var(--chili);}
+
+  .empty{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    padding:20px 10px;
+  }
+
+  .month-picker{display:flex;gap:8px;margin-bottom:14px;}
+  .month-picker input{flex:1;}
+
+  .total-badge{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;
+    background:var(--turmeric-soft);
+    border-radius:10px;
+    margin-bottom:8px;
+  }
+  .total-badge .name{font-weight:700;font-size:14.5px;}
+  .total-badge .amount{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700;
+    font-size:15px;
+    color:var(--chili-dark);
+  }
+
+  .copy-row{margin-top:14px;}
+
+  .loading{
+    text-align:center;color:var(--turmeric-soft);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    padding:30px 0;
+  }
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;
+    padding:10px 18px;border-radius:20px;
+    font-size:13px;font-family:'Inter',sans-serif;
+    opacity:0;pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:50;
+    max-width:85vw;
+    text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  .toast.alert{background:var(--chili);}
+
+  #login-overlay{
+    position:fixed;inset:0;
+    background:var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  #login-overlay .login-card{
+    background:var(--card);
+    border-radius:16px;
+    padding:26px 22px;
+    max-width:360px;width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,0.4);
+  }
+  #login-overlay h1{
+    font-family:'Fraunces',serif;
+    font-size:22px;margin:0 0 4px;
+    color:var(--ink);
+  }
+  #login-overlay p{
+    font-size:13px;color:var(--ink-soft);
+    margin:0 0 18px;
+  }
+
+  .user-row{display:flex;align-items:center;gap:10px;}
+  .bell{
+    position:relative;
+    width:40px;height:40px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    font-size:18px;
+    flex-shrink:0;
+  }
+  .bell .badge{
+    position:absolute;top:-3px;right:-3px;
+    background:var(--chili);
+    color:#fff;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;font-weight:700;
+    min-width:16px;height:16px;
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    padding:0 3px;
+  }
+  .whoami{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:var(--turmeric);
+    cursor:pointer;
+    text-decoration:underline;
+    text-underline-offset:2px;
+    background:none;border:none;
+    padding:0;
+  }
+
+  .entry.editing .qty-display{display:none;}
+  .edit-row{display:flex;align-items:center;gap:6px;}
+  .edit-row input{width:70px;padding:6px 8px;font-size:13px;}
+  .edit-row button{
+    border:none;border-radius:6px;
+    padding:6px 9px;font-size:12px;font-weight:600;
+    cursor:pointer;
+  }
+  .edit-row .save-btn{background:var(--curry);color:#fff;}
+  .edit-row .cancel-btn{background:var(--card-edge);color:var(--ink-soft);}
+
+  .conn-status{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    text-align:center;
+    padding:6px 0 2px;
+    color:var(--turmeric);
+    opacity:0.75;
+  }
+  .conn-status.offline{color:var(--chili);}
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <h1>Welcome</h1>
+    <p>Enter your name and phone number to start logging purchases.</p>
+    <label>Your name</label>
+    <input type="text" id="login-name" placeholder="e.g. Ravi" style="margin-bottom:12px">
+    <label>Phone number</label>
+    <input type="tel" id="login-phone" placeholder="e.g. 9876543210" style="margin-bottom:16px">
+    <button class="btn" id="btn-login">Continue</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="title">Purchase Ledger</div>
+      <div class="sub">Daily vendor stock intake</div>
+    </div>
+    <div class="user-row">
+      <button class="whoami" id="whoami-btn"></button>
+      <div class="bell" id="bell-btn">🔔<span class="badge" id="bell-badge" style="display:none">0</span></div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="items">Items</div>
+    <div class="tab" data-tab="add">Add</div>
+    <div class="tab" data-tab="today">Today</div>
+    <div class="tab" data-tab="report">Monthly Report</div>
+  </div>
+
+  <!-- ITEMS TAB -->
+  <div id="tab-items">
+    <div class="card">
+      <h2>Add a new item</h2>
+      <div class="row">
+        <div style="flex:2">
+          <label>Item name</label>
+          <input type="text" id="i-name" placeholder="e.g. Sambar">
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="i-unit">
+            <option>L</option>
+            <option>ml</option>
+            <option>kg</option>
+            <option>g</option>
+            <option>pcs</option>
+            <option>packet</option>
+            <option>dozen</option>
+            <option>box</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" id="btn-add-item">Add item</button>
+    </div>
+    <div class="card">
+      <h2>Your items</h2>
+      <div id="items-list"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ADD TAB -->
+  <div id="tab-add" style="display:none">
+    <div class="card">
+      <h2>Log what came in</h2>
+      <div class="row">
+        <div>
+          <label>Date</label>
+          <input type="date" id="f-date">
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:2">
+          <label>Item</label>
+          <select id="f-item"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Quantity</label>
+          <input type="number" id="f-qty" step="0.01" min="0" placeholder="e.g. 10">
+        </div>
+        <div>
+          <label>Unit</label>
+          <input type="text" id="f-unit-display" disabled placeholder="—">
+        </div>
+      </div>
+      <button class="btn" id="btn-add">Add entry</button>
+    </div>
+  </div>
+
+  <!-- TODAY TAB -->
+  <div id="tab-today" style="display:none">
+    <div class="card">
+      <h2 id="today-heading">Today's entries</h2>
+      <div id="today-list"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- REPORT TAB -->
+  <div id="tab-report" style="display:none">
+    <div class="card">
+      <h2>Monthly total</h2>
+      <div class="month-picker">
+        <input type="month" id="r-month">
+      </div>
+      <div id="report-totals"></div>
+      <div class="copy-row">
+        <button class="btn secondary" id="btn-copy">Copy report as text</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>All entries this month</h2>
+      <div id="report-list"><div class="empty">Pick a month above</div></div>
+    </div>
+  </div>
+
+  <div class="conn-status" id="conn-status"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+let entries = [];
+let items = [];
+let currentUser = null; // {name, phone}
+let lastSeenAt = 0;
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtQty(n){
+  n = Number(n);
+  return (n % 1 === 0) ? n.toString() : n.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showToast(msg, isAlert){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('alert', !!isAlert);
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), isAlert ? 3200 : 1800);
+}
+function setConnStatus(msg, offline){
+  const el = document.getElementById('conn-status');
+  el.textContent = msg;
+  el.classList.toggle('offline', !!offline);
+}
+
+// ---- DATA LOAD ----
+async function loadEntries(){
+  const { data, error } = await supabase.from('entries').select('*').order('created_at', {ascending:false});
+  if(error){ setConnStatus('Could not reach the server — check your connection', true); return; }
+  entries = data.map(e => ({...e, createdAt: new Date(e.created_at).getTime()}));
+}
+async function loadItems(){
+  const { data, error } = await supabase.from('items').select('*').order('name');
+  if(error){ setConnStatus('Could not reach the server — check your connection', true); return; }
+  items = data;
+}
+
+// ---- LOGIN / IDENTITY ----
+async function loadLastSeen(){
+  const { data } = await supabase.from('last_seen').select('*').eq('phone', currentUser.phone).maybeSingle();
+  lastSeenAt = data ? new Date(data.last_seen_at).getTime() : 0;
+}
+async function markSeenNow(){
+  lastSeenAt = Date.now();
+  await supabase.from('last_seen').upsert({ phone: currentUser.phone, last_seen_at: new Date(lastSeenAt).toISOString() });
+  updateBellBadge();
+}
+function updateBellBadge(){
+  if(!currentUser) return;
+  const unseen = entries.filter(e => e.createdAt > lastSeenAt && e.user_phone !== currentUser.phone);
+  const badge = document.getElementById('bell-badge');
+  if(unseen.length > 0){
+    badge.style.display = 'flex';
+    badge.textContent = unseen.length > 9 ? '9+' : unseen.length;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+document.getElementById('btn-login').addEventListener('click', async ()=>{
+  const name = document.getElementById('login-name').value.trim();
+  const phone = document.getElementById('login-phone').value.trim();
+  if(!name){ showToast('Enter your name'); return; }
+  if(!phone || phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number'); return; }
+
+  currentUser = { name, phone };
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('whoami-btn').textContent = `${name} · switch user`;
+
+  setConnStatus('Connecting…');
+  await loadEntries();
+  await loadItems();
+  await loadLastSeen();
+  updateBellBadge();
+  renderItems();
+  populateItemSelect();
+  setConnStatus('Live — synced across everyone\'s phone');
+  subscribeRealtime();
+});
+
+document.getElementById('whoami-btn').addEventListener('click', ()=>{
+  currentUser = null;
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-phone').value = '';
+  document.getElementById('login-overlay').style.display = 'flex';
+});
+
+document.getElementById('bell-btn').addEventListener('click', async ()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.tab[data-tab="today"]').classList.add('active');
+  ['items','add','today','report'].forEach(name=>{
+    document.getElementById('tab-'+name).style.display = (name==='today') ? 'block' : 'none';
+  });
+  await renderToday();
+  await markSeenNow();
+});
+
+// ---- REALTIME (instant sync + in-app alert while app is open) ----
+function subscribeRealtime(){
+  supabase.channel('entries-live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries' }, (payload) => {
+      const e = payload.new;
+      entries.unshift({...e, createdAt: new Date(e.created_at).getTime()});
+      if(currentUser && e.user_phone !== currentUser.phone){
+        showToast(`${e.user_name || 'Someone'} added ${fmtQty(e.qty)} ${e.unit} ${e.item}`, true);
+      }
+      updateBellBadge();
+      refreshVisibleTab();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'entries' }, (payload) => {
+      const idx = entries.findIndex(x => x.id === payload.new.id);
+      if(idx > -1) entries[idx] = {...payload.new, createdAt: new Date(payload.new.created_at).getTime()};
+      refreshVisibleTab();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' }, (payload) => {
+      entries = entries.filter(x => x.id !== payload.old.id);
+      refreshVisibleTab();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, async () => {
+      await loadItems();
+      renderItems();
+      populateItemSelect();
+    })
+    .subscribe((status)=>{
+      if(status === 'SUBSCRIBED') setConnStatus('Live — synced across everyone\'s phone');
+      if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setConnStatus('Connection lost — retrying…', true);
+    });
+}
+function refreshVisibleTab(){
+  const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+  if(activeTab === 'today') renderToday();
+  if(activeTab === 'report') renderReport();
+}
+
+// ---- TABS ----
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    ['items','add','today','report'].forEach(name=>{
+      document.getElementById('tab-'+name).style.display = (name===tab.dataset.tab) ? 'block' : 'none';
+    });
+    if(tab.dataset.tab === 'items') renderItems();
+    if(tab.dataset.tab === 'add') populateItemSelect();
+    if(tab.dataset.tab === 'today') renderToday();
+    if(tab.dataset.tab === 'report') renderReport();
+  });
+});
+
+// ---- ITEMS ----
+document.getElementById('btn-add-item').addEventListener('click', async ()=>{
+  const name = document.getElementById('i-name').value.trim();
+  const unit = document.getElementById('i-unit').value;
+  if(!name){ showToast('Enter an item name'); return; }
+  const dup = items.some(it => it.name.toLowerCase() === name.toLowerCase());
+  if(dup){ showToast('That item already exists'); return; }
+
+  const btn = document.getElementById('btn-add-item');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const { error } = await supabase.from('items').insert({ name, unit });
+  if(error){ showToast('Could not save — try again'); }
+  else {
+    await loadItems();
+    renderItems();
+    populateItemSelect();
+    document.getElementById('i-name').value = '';
+    showToast(`Added ${name} (${unit})`);
+  }
+  btn.disabled = false; btn.textContent = 'Add item';
+});
+
+function renderItems(){
+  const container = document.getElementById('items-list');
+  if(items.length === 0){
+    container.innerHTML = '<div class="empty">No items yet. Add your first item above.</div>';
+    return;
+  }
+  const sorted = [...items].sort((a,b)=> a.name.localeCompare(b.name));
+  container.innerHTML = sorted.map(it => `
+    <div class="entry" data-id="${it.id}">
+      <div class="item-name">${escapeHtml(it.name)}</div>
+      <div style="display:flex;align-items:center;">
+        <div class="qty" style="cursor:default">${it.unit}</div>
+        <button class="del" data-id="${it.id}" title="Delete">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.id;
+      const { error } = await supabase.from('items').delete().eq('id', id);
+      if(error){ showToast('Could not delete — try again'); return; }
+      await loadItems();
+      renderItems();
+      populateItemSelect();
+      showToast('Item removed');
+    });
+  });
+}
+
+// ---- ADD ----
+document.getElementById('f-date').value = todayISO();
+
+function populateItemSelect(){
+  const sel = document.getElementById('f-item');
+  const unitDisplay = document.getElementById('f-unit-display');
+  if(items.length === 0){
+    sel.innerHTML = '<option value="">No items yet — add one in the Items tab</option>';
+    unitDisplay.value = '';
+    return;
+  }
+  const sorted = [...items].sort((a,b)=> a.name.localeCompare(b.name));
+  sel.innerHTML = sorted.map(it => `<option value="${it.id}">${escapeHtml(it.name)}</option>`).join('');
+  const selected = items.find(it => it.id === sel.value) || sorted[0];
+  unitDisplay.value = selected ? selected.unit : '';
+}
+document.getElementById('f-item').addEventListener('change', ()=>{
+  const sel = document.getElementById('f-item');
+  const selected = items.find(it => it.id === sel.value);
+  document.getElementById('f-unit-display').value = selected ? selected.unit : '';
+});
+
+document.getElementById('btn-add').addEventListener('click', async ()=>{
+  const date = document.getElementById('f-date').value || todayISO();
+  const sel = document.getElementById('f-item');
+  const selectedItem = items.find(it => it.id === sel.value);
+  const qty = parseFloat(document.getElementById('f-qty').value);
+
+  if(!selectedItem){ showToast('Add an item in the Items tab first'); return; }
+  if(!qty || qty <= 0){ showToast('Enter a valid quantity'); return; }
+
+  const btn = document.getElementById('btn-add');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const { error } = await supabase.from('entries').insert({
+    date, item: selectedItem.name, qty, unit: selectedItem.unit,
+    user_name: currentUser.name, user_phone: currentUser.phone
+  });
+  if(error){ showToast('Could not save — try again'); }
+  else {
+    await loadEntries();
+    await markSeenNow();
+    document.getElementById('f-qty').value = '';
+    showToast(`Added ${fmtQty(qty)} ${selectedItem.unit} ${selectedItem.name}`);
+  }
+  btn.disabled = false; btn.textContent = 'Add entry';
+});
+
+// ---- TODAY ----
+async function renderToday(){
+  const today = todayISO();
+  const list = entries.filter(e=>e.date === today).sort((a,b)=>b.createdAt-a.createdAt);
+  document.getElementById('today-heading').textContent = `Today's entries (${today})`;
+  const container = document.getElementById('today-list');
+
+  if(list.length === 0){
+    container.innerHTML = '<div class="empty">Nothing logged today yet.</div>';
+    return;
+  }
+  container.innerHTML = list.map(e => `
+    <div class="entry" data-id="${e.id}">
+      <div>
+        <div class="item-name">${escapeHtml(e.item)}</div>
+        <div class="meta">${e.user_name ? escapeHtml(e.user_name) + ' · ' : ''}${new Date(e.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="qty-display" style="display:flex;align-items:center;">
+        <div class="qty" data-id="${e.id}" title="Tap to edit">${fmtQty(e.qty)} ${e.unit}</div>
+        <button class="del" data-id="${e.id}" title="Delete">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  wireEntryControls(container, renderToday);
+}
+
+function wireEntryControls(container, refreshFn){
+  container.querySelectorAll('.del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.id;
+      const { error } = await supabase.from('entries').delete().eq('id', id);
+      if(error){ showToast('Could not delete — try again'); return; }
+      await loadEntries();
+      refreshFn();
+      showToast('Entry deleted');
+    });
+  });
+
+  container.querySelectorAll('.qty').forEach(qtyEl=>{
+    qtyEl.addEventListener('click', ()=>{
+      const id = qtyEl.dataset.id;
+      const entry = entries.find(e=>e.id === id);
+      if(!entry) return;
+      const wrap = qtyEl.parentElement;
+      wrap.innerHTML = `
+        <div class="edit-row">
+          <input type="number" step="0.01" min="0" value="${entry.qty}" id="edit-input-${id}">
+          <span>${entry.unit}</span>
+          <button class="save-btn" data-id="${id}">Save</button>
+          <button class="cancel-btn" data-id="${id}">Cancel</button>
+        </div>
+      `;
+      wrap.querySelector('.save-btn').addEventListener('click', async ()=>{
+        const newQty = parseFloat(document.getElementById(`edit-input-${id}`).value);
+        if(!newQty || newQty <= 0){ showToast('Enter a valid quantity'); return; }
+        const { error } = await supabase.from('entries').update({ qty: newQty }).eq('id', id);
+        if(error){ showToast('Could not save — try again'); return; }
+        await loadEntries();
+        refreshFn();
+        showToast('Quantity updated');
+      });
+      wrap.querySelector('.cancel-btn').addEventListener('click', ()=> refreshFn());
+    });
+  });
+}
+
+// ---- REPORT ----
+const monthInput = document.getElementById('r-month');
+monthInput.value = new Date().toISOString().slice(0,7);
+monthInput.addEventListener('change', renderReport);
+
+async function renderReport(){
+  const month = monthInput.value;
+  if(!month) return;
+
+  const monthEntries = entries.filter(e => e.date && e.date.slice(0,7) === month)
+                               .sort((a,b)=> a.date.localeCompare(b.date));
+
+  const totals = {};
+  monthEntries.forEach(e=>{
+    const key = e.item.trim().toLowerCase() + '|' + e.unit;
+    if(!totals[key]) totals[key] = {item:e.item, unit:e.unit, qty:0};
+    totals[key].qty += Number(e.qty);
+  });
+  const totalsArr = Object.values(totals).sort((a,b)=> b.qty - a.qty);
+
+  const totalsEl = document.getElementById('report-totals');
+  totalsEl.innerHTML = totalsArr.length === 0
+    ? '<div class="empty">No entries logged for this month yet.</div>'
+    : totalsArr.map(t => `
+      <div class="total-badge">
+        <div class="name">${escapeHtml(t.item)}</div>
+        <div class="amount">${fmtQty(t.qty)} ${t.unit}</div>
+      </div>
+    `).join('');
+
+  const listEl = document.getElementById('report-list');
+  if(monthEntries.length === 0){
+    listEl.innerHTML = '<div class="empty">No entries this month.</div>';
+  } else {
+    listEl.innerHTML = monthEntries.map(e => `
+      <div class="entry" data-id="${e.id}">
+        <div>
+          <div class="item-name">${escapeHtml(e.item)}</div>
+          <div class="meta">${e.date}${e.user_name ? ' · ' + escapeHtml(e.user_name) : ''}</div>
+        </div>
+        <div class="qty-display" style="display:flex;align-items:center;">
+          <div class="qty" data-id="${e.id}" title="Tap to edit">${fmtQty(e.qty)} ${e.unit}</div>
+          <button class="del" data-id="${e.id}" title="Delete">✕</button>
+        </div>
+      </div>
+    `).join('');
+    wireEntryControls(listEl, renderReport);
+  }
+
+  window._lastReport = {month, totalsArr, monthEntries};
+}
+
+document.getElementById('btn-copy').addEventListener('click', async ()=>{
+  const r = window._lastReport;
+  if(!r || r.totalsArr.length === 0){ showToast('Nothing to copy yet'); return; }
+  const lines = [];
+  lines.push(`Purchase Report — ${r.month}`);
+  lines.push('');
+  lines.push('TOTALS:');
+  r.totalsArr.forEach(t => lines.push(`${t.item}: ${fmtQty(t.qty)} ${t.unit}`));
+  lines.push('');
+  lines.push('ENTRIES:');
+  r.monthEntries.forEach(e => lines.push(`${e.date} — ${e.item}: ${fmtQty(e.qty)} ${e.unit}${e.user_name ? ' (' + e.user_name + ')' : ''}`));
+  const text = lines.join('\n');
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast('Report copied to clipboard');
+  }catch(e){
+    showToast('Could not copy — select text manually');
+  }
+});
+
+// ---- SERVICE WORKER (installability) ----
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
