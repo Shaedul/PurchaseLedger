@@ -498,9 +498,10 @@ function updateBellBadge(){
 
 document.getElementById('btn-login').addEventListener('click', async ()=>{
   const name = document.getElementById('login-name').value.trim();
-  const phone = document.getElementById('login-phone').value.trim();
+  let phone = document.getElementById('login-phone').value.trim();
   if(!name){ showToast('Enter your name'); return; }
-  if(!phone || phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number'); return; }
+  if(phone && phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number, or leave it blank'); return; }
+  if(!phone){ phone = 'guest-' + Math.random().toString(36).slice(2,10); }
 
   currentUser = { name, phone };
   document.getElementById('login-overlay').style.display = 'none';
