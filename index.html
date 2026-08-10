@@ -314,7 +314,7 @@
     <label>Your name</label>
     <input type="text" id="login-name" placeholder="e.g. Ravi" style="margin-bottom:12px">
     <label>Phone number</label>
-    <input type="tel" id="login-phone" placeholder="e.g. 9876543210 (optional)" style="margin-bottom:16px">
+    <input type="tel" id="login-phone" placeholder="e.g. 9876543210" style="margin-bottom:16px">
     <button class="btn" id="btn-login">Continue</button>
   </div>
 </div>
@@ -498,10 +498,9 @@ function updateBellBadge(){
 
 document.getElementById('btn-login').addEventListener('click', async ()=>{
   const name = document.getElementById('login-name').value.trim();
-  let phone = document.getElementById('login-phone').value.trim();
+  const phone = document.getElementById('login-phone').value.trim();
   if(!name){ showToast('Enter your name'); return; }
-  if(phone && phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number, or leave it blank'); return; }
-  if(!phone){ phone = 'guest-' + Math.random().toString(36).slice(2,10); }
+  if(!phone || phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number'); return; }
 
   currentUser = { name, phone };
   document.getElementById('login-overlay').style.display = 'none';
