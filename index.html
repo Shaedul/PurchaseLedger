@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Ledger">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -445,6 +446,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
+const CURRENCY = '€'; // change this one symbol to switch currency everywhere in the app
+
 let entries = [];
 let items = [];
 let currentUser = null; // {name, phone}
@@ -651,7 +654,7 @@ document.getElementById('btn-add-item').addEventListener('click', async ()=>{
     populateItemSelect();
     document.getElementById('i-name').value = '';
     document.getElementById('i-price').value = '';
-    showToast(`Added ${name} (${unit}, ₹${price})`);
+    showToast(`Added ${name} (${unit}, ${CURRENCY}${price})`);
   }
   btn.disabled = false; btn.textContent = 'Add item';
 });
@@ -667,7 +670,7 @@ function renderItems(){
     <div class="entry" data-id="${it.id}">
       <div class="item-name">${escapeHtml(it.name)}</div>
       <div class="qty-display" style="display:flex;align-items:center;">
-        <div class="qty" data-id="${it.id}" ${isAdmin ? 'title="Tap to edit"' : 'style="cursor:default"'}>${it.unit} · ₹${fmtQty(it.price || 0)}</div>
+        <div class="qty" data-id="${it.id}" ${isAdmin ? 'title="Tap to edit"' : 'style="cursor:default"'}>${it.unit} · ${CURRENCY}${fmtQty(it.price || 0)}</div>
         ${isAdmin ? `<button class="del" data-id="${it.id}" title="Delete">✕</button>` : ''}
       </div>
     </div>
@@ -863,13 +866,13 @@ async function renderReport(){
         <div class="name">${escapeHtml(t.item)}</div>
         <div style="text-align:right">
           <div class="amount">${fmtQty(t.qty)} ${t.unit}</div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft)">€${fmtQty(t.cost)}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft)">${CURRENCY}${fmtQty(t.cost)}</div>
         </div>
       </div>
     `).join('') + (totalsArr.length > 0 ? `
       <div class="total-badge" style="background:var(--chili);margin-top:4px;">
         <div class="name" style="color:#fff">Total to pay</div>
-        <div class="amount" style="color:#fff">₹${fmtQty(grandTotal)}</div>
+        <div class="amount" style="color:#fff">${CURRENCY}${fmtQty(grandTotal)}</div>
       </div>
     ` : '');
 
@@ -902,12 +905,12 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
   lines.push(`Purchase Report — ${r.month}`);
   lines.push('');
   lines.push('TOTALS:');
-  r.totalsArr.forEach(t => lines.push(`${t.item}: ${fmtQty(t.qty)} ${t.unit} — €${fmtQty(t.cost)}`));
+  r.totalsArr.forEach(t => lines.push(`${t.item}: ${fmtQty(t.qty)} ${t.unit} — ${CURRENCY}${fmtQty(t.cost)}`));
   lines.push('');
-  lines.push(`TOTAL TO PAY: ₹${fmtQty(r.grandTotal)}`);
+  lines.push(`TOTAL TO PAY: ${CURRENCY}${fmtQty(r.grandTotal)}`);
   lines.push('');
   lines.push('ENTRIES:');
-  r.monthEntries.forEach(e => lines.push(`${e.date} — ${e.item}: ${fmtQty(e.qty)} ${e.unit} (₹${fmtQty(e.qty * (e.unit_price||0))})${e.user_name ? ' — ' + e.user_name : ''}`));
+  r.monthEntries.forEach(e => lines.push(`${e.date} — ${e.item}: ${fmtQty(e.qty)} ${e.unit} (${CURRENCY}${fmtQty(e.qty * (e.unit_price||0))})${e.user_name ? ' — ' + e.user_name : ''}`));
   const text = lines.join('\n');
   try{
     await navigator.clipboard.writeText(text);
