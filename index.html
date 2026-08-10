@@ -313,8 +313,8 @@
     <p>Enter your name and phone number to start logging purchases.</p>
     <label>Your name</label>
     <input type="text" id="login-name" placeholder="e.g. Ravi" style="margin-bottom:12px">
-    <label>Phone number</label>
-    <input type="tel" id="login-phone" placeholder="e.g. 9876543210" style="margin-bottom:16px">
+    <label>Phone number (optional)</label>
+    <input type="tel" id="login-phone" placeholder="e.g. 9876543210 (optional)" style="margin-bottom:16px">
     <button class="btn" id="btn-login">Continue</button>
   </div>
 </div>
@@ -327,6 +327,7 @@
     </div>
     <div class="user-row">
       <button class="whoami" id="whoami-btn"></button>
+      <div class="bell" id="admin-btn" title="Admin">🔒</div>
       <div class="bell" id="bell-btn">🔔<span class="badge" id="bell-badge" style="display:none">0</span></div>
     </div>
   </header>
@@ -340,7 +341,7 @@
 
   <!-- ITEMS TAB -->
   <div id="tab-items">
-    <div class="card">
+    <div class="card" id="add-item-card" style="display:none">
       <h2>Add a new item</h2>
       <div class="row">
         <div style="flex:2">
@@ -361,7 +362,16 @@
           </select>
         </div>
       </div>
+      <div class="row">
+        <div>
+          <label>Base price (per unit)</label>
+          <input type="number" id="i-price" step="0.01" min="0" placeholder="e.g. 45">
+        </div>
+      </div>
       <button class="btn" id="btn-add-item">Add item</button>
+    </div>
+    <div class="card" id="admin-locked-note" style="display:none">
+      <p style="margin:0;font-size:13px;color:var(--ink-soft)">🔒 Only the admin can add or edit menu items. Tap the lock icon above to unlock.</p>
     </div>
     <div class="card">
       <h2>Your items</h2>
@@ -440,6 +450,7 @@ let entries = [];
 let items = [];
 let currentUser = null; // {name, phone}
 let lastSeenAt = 0;
+let isAdmin = false;
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmtQty(n){
@@ -498,9 +509,13 @@ function updateBellBadge(){
 
 document.getElementById('btn-login').addEventListener('click', async ()=>{
   const name = document.getElementById('login-name').value.trim();
-  const phone = document.getElementById('login-phone').value.trim();
+  let phone = document.getElementById('login-phone').value.trim();
   if(!name){ showToast('Enter your name'); return; }
-  if(!phone || phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number'); return; }
+  if(phone && phone.replace(/\D/g,'').length < 7){ showToast('Enter a valid phone number, or leave it blank'); return; }
+  if(!phone){ phone = 'guest-' + Math.random().toString(36).slice(2,10); }
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Connecting…';
 
   currentUser = { name, phone };
   document.getElementById('login-overlay').style.display = 'none';
@@ -511,6 +526,7 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
   await loadItems();
   await loadLastSeen();
   updateBellBadge();
+  applyAdminVisibility();
   renderItems();
   populateItemSelect();
   setConnStatus('Live — synced across everyone\'s phone');
@@ -519,10 +535,40 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
 
 document.getElementById('whoami-btn').addEventListener('click', ()=>{
   currentUser = null;
+  isAdmin = false;
   document.getElementById('login-name').value = '';
   document.getElementById('login-phone').value = '';
   document.getElementById('login-overlay').style.display = 'flex';
 });
+
+document.getElementById('admin-btn').addEventListener('click', ()=>{
+  const btn = document.getElementById('admin-btn');
+  if(isAdmin){
+    isAdmin = false;
+    btn.textContent = '🔒';
+    showToast('Admin mode off');
+  } else {
+    const pw = window.prompt('Enter admin password:');
+    if(pw === null) return;
+    if(pw === window.ADMIN_PASSWORD){
+      isAdmin = true;
+      btn.textContent = '🔓';
+      showToast('Admin mode on');
+    } else {
+      showToast('Wrong password');
+    }
+  }
+  applyAdminVisibility();
+  renderItems();
+  const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+  if(activeTab === 'today') renderToday();
+  if(activeTab === 'report') renderReport();
+});
+
+function applyAdminVisibility(){
+  document.getElementById('add-item-card').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('admin-locked-note').style.display = isAdmin ? 'none' : 'block';
+}
 
 document.getElementById('bell-btn').addEventListener('click', async ()=>{
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -590,6 +636,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
 document.getElementById('btn-add-item').addEventListener('click', async ()=>{
   const name = document.getElementById('i-name').value.trim();
   const unit = document.getElementById('i-unit').value;
+  const price = parseFloat(document.getElementById('i-price').value) || 0;
   if(!name){ showToast('Enter an item name'); return; }
   const dup = items.some(it => it.name.toLowerCase() === name.toLowerCase());
   if(dup){ showToast('That item already exists'); return; }
@@ -597,14 +644,15 @@ document.getElementById('btn-add-item').addEventListener('click', async ()=>{
   const btn = document.getElementById('btn-add-item');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('items').insert({ name, unit });
+  const { error } = await supabase.from('items').insert({ name, unit, price });
   if(error){ showToast('Could not save — try again'); }
   else {
     await loadItems();
     renderItems();
     populateItemSelect();
     document.getElementById('i-name').value = '';
-    showToast(`Added ${name} (${unit})`);
+    document.getElementById('i-price').value = '';
+    showToast(`Added ${name} (${unit}, ₹${price})`);
   }
   btn.disabled = false; btn.textContent = 'Add item';
 });
@@ -612,19 +660,21 @@ document.getElementById('btn-add-item').addEventListener('click', async ()=>{
 function renderItems(){
   const container = document.getElementById('items-list');
   if(items.length === 0){
-    container.innerHTML = '<div class="empty">No items yet. Add your first item above.</div>';
+    container.innerHTML = '<div class="empty">No items yet.</div>';
     return;
   }
   const sorted = [...items].sort((a,b)=> a.name.localeCompare(b.name));
   container.innerHTML = sorted.map(it => `
     <div class="entry" data-id="${it.id}">
       <div class="item-name">${escapeHtml(it.name)}</div>
-      <div style="display:flex;align-items:center;">
-        <div class="qty" style="cursor:default">${it.unit}</div>
-        <button class="del" data-id="${it.id}" title="Delete">✕</button>
+      <div class="qty-display" style="display:flex;align-items:center;">
+        <div class="qty" data-id="${it.id}" ${isAdmin ? 'title="Tap to edit"' : 'style="cursor:default"'}>${it.unit} · ₹${fmtQty(it.price || 0)}</div>
+        ${isAdmin ? `<button class="del" data-id="${it.id}" title="Delete">✕</button>` : ''}
       </div>
     </div>
   `).join('');
+
+  if(!isAdmin) return;
 
   container.querySelectorAll('.del').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -635,6 +685,33 @@ function renderItems(){
       renderItems();
       populateItemSelect();
       showToast('Item removed');
+    });
+  });
+
+  container.querySelectorAll('.qty').forEach(qtyEl=>{
+    qtyEl.addEventListener('click', ()=>{
+      const id = qtyEl.dataset.id;
+      const it = items.find(x=>x.id === id);
+      if(!it) return;
+      const wrap = qtyEl.parentElement;
+      wrap.innerHTML = `
+        <div class="edit-row">
+          <input type="number" step="0.01" min="0" value="${it.price || 0}" id="edit-price-${id}" style="width:60px" placeholder="Price">
+          <span>${it.unit}</span>
+          <button class="save-btn" data-id="${id}">Save</button>
+          <button class="cancel-btn" data-id="${id}">Cancel</button>
+        </div>
+      `;
+      wrap.querySelector('.save-btn').addEventListener('click', async ()=>{
+        const newPrice = parseFloat(document.getElementById(`edit-price-${id}`).value) || 0;
+        const { error } = await supabase.from('items').update({ price: newPrice }).eq('id', id);
+        if(error){ showToast('Could not save — try again'); return; }
+        await loadItems();
+        renderItems();
+        populateItemSelect();
+        showToast('Price updated');
+      });
+      wrap.querySelector('.cancel-btn').addEventListener('click', ()=> renderItems());
     });
   });
 }
@@ -675,6 +752,7 @@ document.getElementById('btn-add').addEventListener('click', async ()=>{
 
   const { error } = await supabase.from('entries').insert({
     date, item: selectedItem.name, qty, unit: selectedItem.unit,
+    unit_price: selectedItem.price || 0,
     user_name: currentUser.name, user_phone: currentUser.phone
   });
   if(error){ showToast('Could not save — try again'); }
@@ -705,13 +783,13 @@ async function renderToday(){
         <div class="meta">${e.user_name ? escapeHtml(e.user_name) + ' · ' : ''}${new Date(e.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <div class="qty-display" style="display:flex;align-items:center;">
-        <div class="qty" data-id="${e.id}" title="Tap to edit">${fmtQty(e.qty)} ${e.unit}</div>
-        <button class="del" data-id="${e.id}" title="Delete">✕</button>
+        <div class="qty" data-id="${e.id}" ${isAdmin ? 'title="Tap to edit"' : 'style="cursor:default"'}>${fmtQty(e.qty)} ${e.unit}</div>
+        ${isAdmin ? `<button class="del" data-id="${e.id}" title="Delete">✕</button>` : ''}
       </div>
     </div>
   `).join('');
 
-  wireEntryControls(container, renderToday);
+  if(isAdmin) wireEntryControls(container, renderToday);
 }
 
 function wireEntryControls(container, refreshFn){
@@ -767,10 +845,14 @@ async function renderReport(){
                                .sort((a,b)=> a.date.localeCompare(b.date));
 
   const totals = {};
+  let grandTotal = 0;
   monthEntries.forEach(e=>{
     const key = e.item.trim().toLowerCase() + '|' + e.unit;
-    if(!totals[key]) totals[key] = {item:e.item, unit:e.unit, qty:0};
+    if(!totals[key]) totals[key] = {item:e.item, unit:e.unit, qty:0, cost:0};
     totals[key].qty += Number(e.qty);
+    const cost = Number(e.qty) * Number(e.unit_price || 0);
+    totals[key].cost += cost;
+    grandTotal += cost;
   });
   const totalsArr = Object.values(totals).sort((a,b)=> b.qty - a.qty);
 
@@ -780,9 +862,17 @@ async function renderReport(){
     : totalsArr.map(t => `
       <div class="total-badge">
         <div class="name">${escapeHtml(t.item)}</div>
-        <div class="amount">${fmtQty(t.qty)} ${t.unit}</div>
+        <div style="text-align:right">
+          <div class="amount">${fmtQty(t.qty)} ${t.unit}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft)">₹${fmtQty(t.cost)}</div>
+        </div>
       </div>
-    `).join('');
+    `).join('') + (totalsArr.length > 0 ? `
+      <div class="total-badge" style="background:var(--chili);margin-top:4px;">
+        <div class="name" style="color:#fff">Total to pay</div>
+        <div class="amount" style="color:#fff">₹${fmtQty(grandTotal)}</div>
+      </div>
+    ` : '');
 
   const listEl = document.getElementById('report-list');
   if(monthEntries.length === 0){
@@ -795,15 +885,15 @@ async function renderReport(){
           <div class="meta">${e.date}${e.user_name ? ' · ' + escapeHtml(e.user_name) : ''}</div>
         </div>
         <div class="qty-display" style="display:flex;align-items:center;">
-          <div class="qty" data-id="${e.id}" title="Tap to edit">${fmtQty(e.qty)} ${e.unit}</div>
-          <button class="del" data-id="${e.id}" title="Delete">✕</button>
+          <div class="qty" data-id="${e.id}" ${isAdmin ? 'title="Tap to edit"' : 'style="cursor:default"'}>${fmtQty(e.qty)} ${e.unit}</div>
+          ${isAdmin ? `<button class="del" data-id="${e.id}" title="Delete">✕</button>` : ''}
         </div>
       </div>
     `).join('');
-    wireEntryControls(listEl, renderReport);
+    if(isAdmin) wireEntryControls(listEl, renderReport);
   }
 
-  window._lastReport = {month, totalsArr, monthEntries};
+  window._lastReport = {month, totalsArr, monthEntries, grandTotal};
 }
 
 document.getElementById('btn-copy').addEventListener('click', async ()=>{
@@ -813,10 +903,12 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
   lines.push(`Purchase Report — ${r.month}`);
   lines.push('');
   lines.push('TOTALS:');
-  r.totalsArr.forEach(t => lines.push(`${t.item}: ${fmtQty(t.qty)} ${t.unit}`));
+  r.totalsArr.forEach(t => lines.push(`${t.item}: ${fmtQty(t.qty)} ${t.unit} — ₹${fmtQty(t.cost)}`));
+  lines.push('');
+  lines.push(`TOTAL TO PAY: ₹${fmtQty(r.grandTotal)}`);
   lines.push('');
   lines.push('ENTRIES:');
-  r.monthEntries.forEach(e => lines.push(`${e.date} — ${e.item}: ${fmtQty(e.qty)} ${e.unit}${e.user_name ? ' (' + e.user_name + ')' : ''}`));
+  r.monthEntries.forEach(e => lines.push(`${e.date} — ${e.item}: ${fmtQty(e.qty)} ${e.unit} (₹${fmtQty(e.qty * (e.unit_price||0))})${e.user_name ? ' — ' + e.user_name : ''}`));
   const text = lines.join('\n');
   try{
     await navigator.clipboard.writeText(text);
